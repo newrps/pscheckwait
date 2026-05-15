@@ -52,6 +52,9 @@
   }
   dbg("init", window.__pscheckwait__);
   const HEARTBEAT_INTERVAL_MS = 15000;
+  const IDLE_TIMEOUT_MS = parseInt(script && script.dataset.idleTimeout, 10) > 0
+    ? parseInt(script.dataset.idleTimeout, 10) * 1000
+    : 180000;
   const STORAGE_KEY = `pscheckwait.token.${SITE}`;
 
   function url(path, params) {
@@ -116,6 +119,27 @@
     setInterval(() => sendHeartbeat(token), HEARTBEAT_INTERVAL_MS);
   }
 
+  function setupIdleTimeout(token) {
+    let lastActivity = Date.now();
+    const bump = () => { lastActivity = Date.now(); };
+    const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "wheel"];
+    events.forEach((ev) => window.addEventListener(ev, bump, { passive: true }));
+
+    const checker = setInterval(() => {
+      if (Date.now() - lastActivity < IDLE_TIMEOUT_MS) return;
+      clearInterval(checker);
+      events.forEach((ev) => window.removeEventListener(ev, bump));
+      dbg("idle timeout reached, leaving queue");
+      try {
+        const u = url("/leave", { token });
+        if (navigator.sendBeacon) navigator.sendBeacon(u);
+        else fetch(u, { method: "POST", keepalive: true }).catch(() => {});
+      } catch (_) {}
+      sessionStorage.removeItem(STORAGE_KEY);
+      location.reload();
+    }, 5000);
+  }
+
   async function run() {
     // 1. Restore token from URL hash if just returned from wait page
     restoreFromHash();
@@ -169,6 +193,7 @@
     if (state.status === "admitted") {
       setupLeaveOnUnload(token);
       setupHeartbeat(token);
+      setupIdleTimeout(token);
       return; // page loads normally
     }
 

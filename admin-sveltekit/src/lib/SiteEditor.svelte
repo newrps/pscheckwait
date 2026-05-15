@@ -26,8 +26,21 @@
     allowed_origins = (c.allowed_origins || []).join(", ");
   }
 
+  async function refreshStats() {
+    if (!domain) return;
+    try {
+      const r = await getSite(domain);
+      if (info) {
+        info = { ...info, active: r.active, waiting: r.waiting };
+      }
+    } catch (_) {}
+  }
+
   $effect(() => {
+    domain;
     load();
+    const id = setInterval(refreshStats, 2000);
+    return () => clearInterval(id);
   });
 
   async function save() {

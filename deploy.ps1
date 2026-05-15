@@ -60,8 +60,16 @@ if ($NoGit) {
   }
 }
 
-# ---- 2. Build ----
-Step "Build (Linux binary via Docker)"
+# ---- 2a. Build admin SPA ----
+Step "Build admin SvelteKit"
+if ($NoBuild) {
+  Skip "npm run build (-NoBuild)"
+} else {
+  Run "npm --prefix `"$root\admin-sveltekit`" run build"
+}
+
+# ---- 2b. Build Rust server (embeds admin/build) ----
+Step "Build Rust server (Linux binary via Docker)"
 if ($NoBuild) {
   Skip "cargo build (-NoBuild)"
   if (-not (Test-Path $Binary)) {

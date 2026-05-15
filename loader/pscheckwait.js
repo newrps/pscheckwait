@@ -115,8 +115,9 @@
     location.replace(target);
   }
 
+  let heartbeatTimer = null;
   function setupHeartbeat(token) {
-    setInterval(() => sendHeartbeat(token), HEARTBEAT_INTERVAL_MS);
+    heartbeatTimer = setInterval(() => sendHeartbeat(token), HEARTBEAT_INTERVAL_MS);
   }
 
   function setupIdleTimeout(token) {
@@ -128,6 +129,7 @@
     const checker = setInterval(() => {
       if (Date.now() - lastActivity < IDLE_TIMEOUT_MS) return;
       clearInterval(checker);
+      if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
       events.forEach((ev) => window.removeEventListener(ev, bump));
       dbg("idle timeout reached, leaving queue");
       try {
@@ -136,7 +138,8 @@
         else fetch(u, { method: "POST", keepalive: true }).catch(() => {});
       } catch (_) {}
       sessionStorage.removeItem(STORAGE_KEY);
-      location.reload();
+      window.__pscheckwait__.status = "idle_left";
+      window.__pscheckwait__.token = null;
     }, 5000);
   }
 

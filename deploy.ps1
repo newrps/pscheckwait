@@ -17,8 +17,8 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 
 # ---- 설정 ----
-$SSHKey     = "C:\Users\newrp\Downloads\ssh-key-2026-05-14.key"
-$Server     = "ubuntu@168.107.54.47"
+# SSH는 ~/.ssh/config 의 "Host pscheckwait" alias 사용
+$SSHHost    = "pscheckwait"
 $RemotePath = "/opt/pscheckwait/pscheckwait-server-linux"
 $Binary     = "$root\server\target-linux\release\pscheckwait-server"
 $HealthUrl  = "https://queue.zam.kr/api/health"
@@ -77,13 +77,13 @@ if (-not $DryRun) {
 }
 
 # ---- 3. Upload ----
-Step "Upload → $Server"
-Run "scp -i `"$SSHKey`" -o StrictHostKeyChecking=no `"$Binary`" `"${Server}:/tmp/pscheckwait-server-new`""
+Step "Upload → $SSHHost"
+Run "scp `"$Binary`" `"${SSHHost}:/tmp/pscheckwait-server-new`""
 
 # ---- 4. Restart ----
 Step "Restart pscheckwait service"
 $remoteCmd = "sudo systemctl stop pscheckwait && sudo mv /tmp/pscheckwait-server-new $RemotePath && sudo chmod +x $RemotePath && sudo systemctl start pscheckwait && sleep 2 && sudo systemctl is-active pscheckwait"
-Run "ssh -i `"$SSHKey`" -o StrictHostKeyChecking=no $Server `"$remoteCmd`""
+Run "ssh $SSHHost `"$remoteCmd`""
 
 # ---- 5. Health check ----
 Step "Health check"

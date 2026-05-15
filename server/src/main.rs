@@ -663,10 +663,7 @@ async fn ws_session(mut socket: WebSocket, site: Arc<SiteState>, token: String) 
             }
             msg = socket.recv() => {
                 match msg {
-                    Some(Ok(Message::Close(_))) => {
-                        site.backend.leave(&token).await;
-                        break;
-                    }
+                    Some(Ok(Message::Close(_))) => break,
                     Some(Ok(Message::Ping(p))) => {
                         let _ = socket.send(Message::Pong(p)).await;
                     }

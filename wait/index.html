@@ -143,11 +143,21 @@
           $("meta").textContent = formatMeta(fmt, state);
         }
 
+        let admittedRedirect = false;
         function goAdmitted() {
+          admittedRedirect = true;
           const u = new URL(RETURN, location.origin);
           u.hash = `wl_token=${encodeURIComponent(TOKEN)}`;
           location.replace(u.toString());
         }
+
+        // 사용자가 wait 페이지를 그냥 닫을 때만 leave 호출 (admitted redirect는 제외)
+        window.addEventListener("pagehide", () => {
+          if (admittedRedirect) return;
+          const u = `${apiBase}/leave?site=${encodeURIComponent(SITE)}&token=${encodeURIComponent(TOKEN)}`;
+          if (navigator.sendBeacon) navigator.sendBeacon(u);
+          else fetch(u, { method: "POST", keepalive: true }).catch(() => {});
+        });
 
         async function fetchConfig() {
           try {

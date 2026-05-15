@@ -1,0 +1,32 @@
+# Rust
+server/target/
+server/target-linux/
+**/*.rs.bk
+
+# Node / SvelteKit
+**/node_modules/
+**/.svelte-kit/
+admin-sveltekit/build/
+
+# Runtime data
+data/
+dist/data/
+
+# Built binaries — commit these to dist/ if you want them in releases instead
+dist/*.exe
+dist/pscheckwait-server-linux
+
+# Secrets
+.env
+.env.local
+*.key
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp

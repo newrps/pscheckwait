@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>대기중</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --border: #334155;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        overflow: hidden;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 48px 56px;
+        max-width: 480px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+      }
+      .title { font-size: 24px; font-weight: 600; margin: 0 0 8px; }
+      .sub { color: var(--muted); font-size: 14px; margin: 0 0 32px; line-height: 1.5; }
+      .position {
+        font-size: 72px; font-weight: 800;
+        color: var(--accent);
+        line-height: 1;
+        margin: 24px 0 6px;
+        font-variant-numeric: tabular-nums;
+      }
+      .label {
+        font-size: 13px;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .spinner {
+        width: 32px; height: 32px;
+        margin: 32px auto 16px;
+        border: 3px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 24px;
+      }
+      .footer {
+        position: fixed;
+        bottom: 16px;
+        left: 0; right: 0;
+        text-align: center;
+        font-size: 11px;
+        color: var(--muted);
+        opacity: 0.5;
+        font-family: Consolas, Monaco, monospace;
+      }
+      .error {
+        color: #f87171;
+        font-size: 13px;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1 class="title" id="title">접속 대기중</h1>
+      <p class="sub" id="subtitle">현재 접속자가 많아 잠시 대기중입니다</p>
+      <div class="position" id="position">-</div>
+      <div class="label" id="position_label">번째 순서</div>
+      <div class="spinner"></div>
+      <div class="meta" id="meta">연결중...</div>
+      <div class="error" id="error" style="display:none"></div>
+    </div>
+    <div class="footer" id="mode">ws</div>
+
+    <script>
+      (function () {
+        const params = new URLSearchParams(location.search);
+        const hash = new URLSearchParams(location.hash.slice(1));
+        const SITE = params.get("site") || "";
+        const RETURN = params.get("return") || "/";
+        let TOKEN = hash.get("token") || "";
+
+        const $ = (id) => document.getElementById(id);
+
+        function setError(msg) {
+          $("error").style.display = "";
+          $("error").textContent = msg;
+        }
+
+        if (!SITE || !TOKEN) {
+          setError("잘못된 접근입니다 (site/token 누락)");
+          return;
+        }
+
+        const apiBase = `${location.protocol}//${location.host}/api`;
+        const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
+        const wsBase = `${wsProto}//${location.host}/api/ws`;
+
+        function formatMeta(template, state) {
+          return (template || "대기 {waiting}명 · 입장 {active}명")
+            .replace("{waiting}", state.total_waiting ?? 0)
+            .replace("{active}", state.active ?? 0)
+            .replace("{position}", state.position ?? 0);
+        }
+
+        function applyConfig(cfg) {
+          if (cfg.title) $("title").textContent = cfg.title;
+          if (cfg.subtitle) $("subtitle").textContent = cfg.subtitle;
+          if (cfg.position_label) $("position_label").textContent = cfg.position_label;
+          if (cfg.meta_format) $("meta").dataset.format = cfg.meta_format;
+        }
+
+        function render(state) {
+          if (state.position > 0) {
+            $("position").textContent = state.position.toLocaleString();
+          } else {
+            $("position").textContent = "-";
+          }
+          const fmt = $("meta").dataset.format || "대기 {waiting}명 · 입장 {active}명";
+          $("meta").textContent = formatMeta(fmt, state);
+        }
+
+        function goAdmitted() {
+          const u = new URL(RETURN, location.origin);
+          u.hash = `wl_token=${encodeURIComponent(TOKEN)}`;
+          location.replace(u.toString());
+        }
+
+        async function fetchConfig() {
+          try {
+            const r = await fetch(`${apiBase}/status?site=${encodeURIComponent(SITE)}&token=${encodeURIComponent(TOKEN)}`);
+            if (r.status === 404) {
+              setError("대기열 정보가 만료되었습니다. 페이지를 새로고침하세요.");
+              return null;
+            }
+            return await r.json();
+          } catch (_) { return null; }
+        }
+
+        async function init() {
+          const initial = await fetchConfig();
+          if (initial && initial.config) applyConfig(initial.config);
+          if (initial && initial.status === "admitted") {
+            goAdmitted();
+            return;
+          }
+          if (initial) render(initial);
+
+          let ws;
+          try {
+            ws = new WebSocket(`${wsBase}?site=${encodeURIComponent(SITE)}&token=${encodeURIComponent(TOKEN)}`);
+          } catch (_) {
+            startPolling();
+            return;
+          }
+
+          let opened = false;
+          ws.addEventListener("open", () => {
+            opened = true;
+            $("mode").textContent = "ws";
+          });
+
+          ws.addEventListener("message", (ev) => {
+            try {
+              const m = JSON.parse(ev.data);
+              if (m.status === "admitted") {
+                ws.close();
+                goAdmitted();
+                return;
+              }
+              if (m.status === "unknown") {
+                ws.close();
+                setError("대기 토큰이 만료되었습니다. 새로고침하세요.");
+                return;
+              }
+              render(m);
+            } catch (_) {}
+          });
+
+          ws.addEventListener("close", () => {
+            if (!opened) startPolling();
+          });
+
+          ws.addEventListener("error", () => {
+            if (!opened) startPolling();
+          });
+        }
+
+        function startPolling() {
+          $("mode").textContent = "polling";
+          const tick = async () => {
+            const s = await fetchConfig();
+            if (!s) return;
+            if (s.status === "admitted") {
+              clearInterval(timer);
+              goAdmitted();
+              return;
+            }
+            render(s);
+          };
+          tick();
+          const timer = setInterval(tick, 3000);
+        }
+
+        // first try to get config from status response config field
+        // actually status doesn't return config — we have config only from enter
+        // we'll just use default texts; admin can customize later if we expose config
+        init();
+      })();
+    </script>
+  </body>
+</html>

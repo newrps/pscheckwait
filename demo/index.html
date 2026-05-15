@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pscheckwait 데모 사이트</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        max-width: 720px;
+        margin: 60px auto;
+        padding: 0 24px;
+        color: #0f172a;
+        line-height: 1.6;
+      }
+      h1 { font-size: 32px; margin-bottom: 8px; }
+      .sub { color: #64748b; margin-bottom: 32px; }
+      .card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+      }
+      .badge {
+        display: inline-block;
+        background: #dbeafe;
+        color: #1e40af;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+      code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+      a { color: #2563eb; }
+    </style>
+    <script src="/loader/pscheckwait.js"></script>
+  </head>
+  <body>
+    <h1>🛍️ 가상 쇼핑몰</h1>
+    <p class="sub">Pscheckwait 대기열 시스템 데모 — 현재 사이트: <code>localhost</code></p>
+
+    <div class="card">
+      <div class="badge">한정판매</div>
+      <h2 style="margin-top:0">콘서트 티켓 예매</h2>
+      <p>2026년 가을 단독 콘서트. 잠시 후 매진 예상.</p>
+      <p>로더가 자동으로 <code>location.hostname</code>(<code>localhost</code>)을 site 식별자로 사용합니다.</p>
+    </div>
+
+    <div class="card">
+      <h3>테스트 방법</h3>
+      <ol>
+        <li>관리자에서 <code>localhost</code>의 <code>max_active</code> 조정 → <a href="/admin/" target="_blank">관리자 열기</a></li>
+        <li>이 페이지를 여러개 띄우면 한도 초과시 대기 화면 표시</li>
+        <li>먼저 들어간 탭을 닫으면 다음 순번 자동 입장</li>
+        <li>문구도 관리자에서 실시간 변경 가능</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>다른 도메인 테스트</h3>
+      <p>관리자에서 <code>example.local</code> 같은 새 사이트 추가 후, <code>hosts</code> 파일에 등록하면 별개의 큐로 동작.</p>
+    </div>
+  </body>
+</html>
